@@ -2,12 +2,15 @@ import "./index.css";
 import React from "react";
 import { Composition } from "remotion";
 import type { CalculateMetadataFunction } from "remotion";
+import { SceneVideo } from "./compositions/SceneVideo";
 import {
-  SceneVideo,
   calculateTotalDuration,
   FPS,
+  VIDEO_WIDTH,
+  VIDEO_HEIGHT,
   type SceneVideoProps,
-} from "./compositions/SceneVideo";
+  type SceneData,
+} from "./types";
 
 const calculateMetadata: CalculateMetadataFunction<SceneVideoProps> = ({
   props,
@@ -15,29 +18,50 @@ const calculateMetadata: CalculateMetadataFunction<SceneVideoProps> = ({
   return {
     durationInFrames: calculateTotalDuration(props.scenes),
     fps: FPS,
-    width: 1920,
-    height: 1080,
+    width: VIDEO_WIDTH,
+    height: VIDEO_HEIGHT,
   };
 };
 
-const defaultScenes: SceneVideoProps["scenes"] = [
+const defaultScenes: SceneData[] = [
   {
+    type: "title",
     title: "Welcome to VidCraft AI",
-    text: "Create stunning videos with the power of artificial intelligence",
+    subtitle: "Create stunning videos with the power of artificial intelligence",
     background:
       "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
     durationInFrames: 120,
   },
   {
-    title: "Write Your Script",
-    text: "Simply type your content and our AI handles the rest",
+    type: "bullets",
+    title: "Key Features",
+    items: [
+      "AI-powered script generation",
+      "9 scene types: charts, tables, code & more",
+      "Cloud rendering on AWS Lambda",
+      "Export in stunning 1080p HD",
+    ],
     background:
       "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
-    durationInFrames: 120,
+    durationInFrames: 150,
   },
   {
-    title: "Export in HD",
-    text: "Download your video in stunning 1080p quality, ready to share",
+    type: "stats",
+    title: "Performance",
+    items: [
+      { value: "10s", label: "Render Time" },
+      { value: "1080p", label: "Resolution" },
+      { value: "9", label: "Scene Types" },
+    ],
+    background:
+      "linear-gradient(135deg, #2d1b69 0%, #1a1a2e 100%)",
+    durationInFrames: 150,
+  },
+  {
+    type: "quote",
+    title: "",
+    quote: "The best way to predict the future is to create it.",
+    author: "Peter Drucker",
     background:
       "linear-gradient(135deg, #0a192f 0%, #112240 50%, #1d3557 100%)",
     durationInFrames: 120,
@@ -52,8 +76,8 @@ export const RemotionRoot: React.FC = () => {
         component={SceneVideo}
         durationInFrames={300}
         fps={FPS}
-        width={1920}
-        height={1080}
+        width={VIDEO_WIDTH}
+        height={VIDEO_HEIGHT}
         defaultProps={
           {
             scenes: defaultScenes,

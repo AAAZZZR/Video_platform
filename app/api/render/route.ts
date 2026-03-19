@@ -1,6 +1,6 @@
 import { renderMediaOnLambda } from "@remotion/lambda/client";
 import { NextResponse } from "next/server";
-import type { SceneData } from "@/src/compositions/SceneVideo";
+import type { SceneData } from "@/src/types";
 
 export async function POST(request: Request) {
   try {

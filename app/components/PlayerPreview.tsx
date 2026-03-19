@@ -1,12 +1,8 @@
 "use client";
 
 import { Player } from "@remotion/player";
-import {
-  SceneVideo,
-  calculateTotalDuration,
-  FPS,
-  type SceneData,
-} from "@/src/compositions/SceneVideo";
+import { SceneVideo } from "@/src/compositions/SceneVideo";
+import { calculateTotalDuration, FPS, type SceneData } from "@/src/types";
 
 export default function PlayerPreview({ scenes }: { scenes: SceneData[] }) {
   const totalFrames = calculateTotalDuration(scenes);
