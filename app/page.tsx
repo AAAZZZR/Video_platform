@@ -236,21 +236,15 @@ export default function LandingPage() {
               <p className="text-sm text-zinc-500 mb-6">Forever free</p>
               <ul className="space-y-3 text-sm text-zinc-400">
                 <li className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  3 videos / month
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0"><polyline points="20 6 9 17 4 12" /></svg>
+                  30 credits / month
                 </li>
                 <li className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0"><polyline points="20 6 9 17 4 12" /></svg>
                   Template mode
                 </li>
                 <li className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0"><polyline points="20 6 9 17 4 12" /></svg>
                   720p rendering
                 </li>
               </ul>
@@ -261,54 +255,42 @@ export default function LandingPage() {
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 text-xs font-semibold">
                 Popular
               </div>
-              <h3 className="text-lg font-semibold mb-1">Tier 1</h3>
-              <div className="text-3xl font-bold mb-1">$12</div>
+              <h3 className="text-lg font-semibold mb-1">T1</h3>
+              <div className="text-3xl font-bold mb-1">$5</div>
               <p className="text-sm text-zinc-500 mb-6">per month</p>
               <ul className="space-y-3 text-sm text-zinc-400">
                 <li className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  30 videos / month
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0"><polyline points="20 6 9 17 4 12" /></svg>
+                  200 credits / month
                 </li>
                 <li className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0"><polyline points="20 6 9 17 4 12" /></svg>
                   All modes + voiceover
                 </li>
                 <li className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  1080p rendering
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0"><polyline points="20 6 9 17 4 12" /></svg>
+                  1080p, no watermark
                 </li>
               </ul>
             </div>
 
             {/* T2 */}
             <div className="rounded-2xl bg-zinc-900/50 border border-zinc-800 p-8">
-              <h3 className="text-lg font-semibold mb-1">Tier 2</h3>
-              <div className="text-3xl font-bold mb-1">$29</div>
+              <h3 className="text-lg font-semibold mb-1">T2</h3>
+              <div className="text-3xl font-bold mb-1">$20</div>
               <p className="text-sm text-zinc-500 mb-6">per month</p>
               <ul className="space-y-3 text-sm text-zinc-400">
                 <li className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  Unlimited videos
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0"><polyline points="20 6 9 17 4 12" /></svg>
+                  1,000 credits / month
                 </li>
                 <li className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0"><polyline points="20 6 9 17 4 12" /></svg>
                   Priority rendering
                 </li>
                 <li className="flex items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  4K rendering
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-green-400 shrink-0"><polyline points="20 6 9 17 4 12" /></svg>
+                  Unlimited generations
                 </li>
               </ul>
             </div>

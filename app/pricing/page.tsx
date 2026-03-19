@@ -48,6 +48,13 @@ export default function PricingPage() {
   }, [supabase]);
 
   const handleSubscribe = async (plan: "t1" | "t2") => {
+    // Check if user is logged in first
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      window.location.href = "/login";
+      return;
+    }
+
     setLoading(plan);
     try {
       const res = await fetch("/api/stripe/checkout", {
@@ -56,28 +63,46 @@ export default function PricingPage() {
         body: JSON.stringify({ plan }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        throw new Error(data.error || "Failed to create checkout session");
+      }
       if (data.url) {
         window.location.href = data.url;
-      } else {
-        alert(data.error || "Failed to create checkout session");
       }
-    } catch {
-      alert("Something went wrong");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(null);
     }
   };
 
   const handleManage = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      window.location.href = "/login";
+      return;
+    }
+
     setLoading("manage");
     try {
       const res = await fetch("/api/stripe/portal", { method: "POST" });
       const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        throw new Error(data.error || "Failed to open portal");
+      }
       if (data.url) {
         window.location.href = data.url;
       }
-    } catch {
-      alert("Something went wrong");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(null);
     }
