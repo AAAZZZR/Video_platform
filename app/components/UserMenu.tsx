@@ -33,12 +33,31 @@ export default function UserMenu() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Try to get profile from DB
       const { data } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
-      if (data) setProfile(data as Profile);
+
+      if (data) {
+        setProfile(data as Profile);
+      } else {
+        // Fallback: build profile from auth user data (profile row might not exist yet)
+        setProfile({
+          id: user.id,
+          email: user.email || "",
+          name: user.user_metadata?.full_name || user.user_metadata?.name || null,
+          avatar_url: user.user_metadata?.avatar_url || null,
+          plan: "free",
+          credits: 30,
+          stripe_customer_id: null,
+          stripe_subscription_id: null,
+          created_at: user.created_at,
+          updated_at: user.created_at,
+        });
+      }
     }
     load();
   }, [supabase]);
