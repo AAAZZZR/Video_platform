@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
+import { getUser } from "@/lib/auth";
+import { checkAndDeductCredits } from "@/lib/credits";
 
 const SYSTEM_PROMPT = `You are a Remotion video component generator. You generate self-contained React components that create stunning animated video content.
 
@@ -119,6 +121,18 @@ function extractNarration(code: string): string {
 }
 
 export async function POST(request: Request) {
+  // Auth check
+  const user = await getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
+  // Credit check
+  const creditResult = await checkAndDeductCredits(user.id, "creative_gen");
+  if (!creditResult.success) {
+    return NextResponse.json({ error: creditResult.error }, { status: 403 });
+  }
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
       { error: "ANTHROPIC_API_KEY is not configured on the server." },

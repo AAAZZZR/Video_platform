@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
+import { getUser } from "@/lib/auth";
+import { checkAndDeductCredits } from "@/lib/credits";
 
 const BACKGROUNDS = [
   "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
@@ -130,6 +132,18 @@ function extractJSON(text: string): unknown {
 }
 
 export async function POST(request: Request) {
+  // Auth check
+  const user = await getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
+  // Credit check
+  const creditResult = await checkAndDeductCredits(user.id, "script_gen");
+  if (!creditResult.success) {
+    return NextResponse.json({ error: creditResult.error }, { status: 403 });
+  }
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
       { error: "ANTHROPIC_API_KEY is not configured on the server." },

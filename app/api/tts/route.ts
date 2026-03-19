@@ -2,6 +2,7 @@ import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
 import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { NextResponse } from "next/server";
+import { getUser } from "@/lib/auth";
 
 async function generateTTS(text: string, voice: string): Promise<Buffer> {
   const tts = new MsEdgeTTS();
@@ -20,6 +21,11 @@ async function generateTTS(text: string, voice: string): Promise<Buffer> {
 }
 
 export async function POST(request: Request) {
+  const user = await getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   try {
     const { scenes, voiceId } = await request.json();
 

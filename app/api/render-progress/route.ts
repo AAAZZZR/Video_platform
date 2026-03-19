@@ -1,7 +1,13 @@
 import { getRenderProgress } from "@remotion/lambda/client";
 import { NextResponse } from "next/server";
+import { getUser } from "@/lib/auth";
 
 export async function GET(request: Request) {
+  const user = await getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const renderId = searchParams.get("renderId");

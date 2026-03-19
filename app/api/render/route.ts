@@ -1,8 +1,14 @@
 import { renderMediaOnLambda } from "@remotion/lambda/client";
 import { NextResponse } from "next/server";
 import type { SceneData } from "@/src/types";
+import { getUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
+  const user = await getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   try {
     const { scenes } = (await request.json()) as { scenes: SceneData[] };
 

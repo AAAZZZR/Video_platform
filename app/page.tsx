@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import dynamic from "next/dynamic";
+import UserMenu from "@/app/components/UserMenu";
 import {
   BACKGROUND_PRESETS,
   FPS,
@@ -1082,7 +1083,7 @@ export default function Home() {
             </div>
             <span className="text-xl font-bold text-white tracking-tight">VidCraft AI</span>
           </div>
-          <span className="text-xs font-medium text-zinc-500 border border-zinc-700 rounded-full px-3 py-1">Beta</span>
+          <UserMenu />
         </div>
       </header>
 
