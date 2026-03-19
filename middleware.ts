@@ -33,17 +33,15 @@ export async function middleware(request: NextRequest) {
   const isCallbackPage = request.nextUrl.pathname.startsWith("/auth/callback");
   const isApiRoute = request.nextUrl.pathname.startsWith("/api");
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
   if (!user && !isAuthPage && !isCallbackPage && !isApiRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(`${appUrl}/login`);
   }
 
   // If logged in and trying to access login page, redirect to home
   if (user && isAuthPage) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(appUrl);
   }
 
   return supabaseResponse;
