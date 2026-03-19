@@ -2,6 +2,11 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  // Skip middleware entirely for Stripe webhook (no cookies, no auth needed)
+  if (request.nextUrl.pathname.startsWith("/api/stripe/webhook")) {
+    return NextResponse.next();
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -35,13 +40,15 @@ export async function middleware(request: NextRequest) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-  if (!user && !isAuthPage && !isCallbackPage && !isApiRoute) {
+  const isPublicPage = request.nextUrl.pathname === "/" || request.nextUrl.pathname === "/pricing";
+
+  if (!user && !isAuthPage && !isCallbackPage && !isApiRoute && !isPublicPage) {
     return NextResponse.redirect(`${appUrl}/login`);
   }
 
-  // If logged in and trying to access login page, redirect to home
+  // If logged in and trying to access login page, redirect to create
   if (user && isAuthPage) {
-    return NextResponse.redirect(appUrl);
+    return NextResponse.redirect(`${appUrl}/create`);
   }
 
   return supabaseResponse;

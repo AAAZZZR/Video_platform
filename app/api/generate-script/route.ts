@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { checkAndDeductCredits } from "@/lib/credits";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const BACKGROUNDS = [
   "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
@@ -211,6 +212,21 @@ export async function POST(request: Request) {
         { error: "AI returned an invalid script format. Please try again." },
         { status: 500 },
       );
+    }
+
+    // Save project to database
+    try {
+      const supabase = createAdminClient();
+      await supabase.from("projects").insert({
+        user_id: user.id,
+        title: topic.trim().slice(0, 100),
+        mode: "template",
+        script_data: parsed,
+        status: "scripted",
+      });
+    } catch (dbErr) {
+      console.error("Failed to save project:", dbErr);
+      // Don't fail the request if DB save fails
     }
 
     return NextResponse.json(parsed);

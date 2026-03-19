@@ -149,3 +149,8 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ received: true });
 }
+
+// GET handler for endpoint verification
+export async function GET() {
+  return NextResponse.json({ status: "Stripe webhook endpoint is active" });
+}

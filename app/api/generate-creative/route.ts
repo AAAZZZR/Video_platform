@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { checkAndDeductCredits } from "@/lib/credits";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const SYSTEM_PROMPT = `You are a Remotion video component generator. You generate self-contained React components that create stunning animated video content.
 
@@ -13,7 +14,13 @@ Return ONLY the React component code. No markdown fences, no explanations, no co
 2. The component receives NO props - all content is embedded in the code
 3. Use ONLY these imports (nothing else is available):
    - import React from 'react';
-   - import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, Sequence, Series, Img, Audio } from 'remotion';
+   - import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, Sequence, Series, Img, useDelayRender, continueRender, staticFile } from 'remotion';
+   - import { Audio } from '@remotion/media';
+   - import { whoosh, whip, pageTurn, uiSwitch, mouseClick, shutterModern, ding } from '@remotion/sfx';
+   - import { TransitionSeries, linearTiming, springTiming } from '@remotion/transitions';
+   - import { fade } from '@remotion/transitions/fade';
+   - import { slide } from '@remotion/transitions/slide';
+   - import { evolvePath, getLength, getPointAtLength, getTangentAtLength } from '@remotion/paths';
 4. The composition is 1920x1080 at 30fps
 
 ## Animation Rules (CRITICAL - violating these will break rendering)
@@ -49,6 +56,41 @@ For custom graphics (stick figures, icons, diagrams):
 - For stick figures: use <line>, <circle> for body parts, animate joint rotations with transform
 - For charts: animate rect height/width, circle stroke-dashoffset
 - Always set viewBox on <svg>
+
+## Sound Effects
+Add transition sounds for polish. Available sound effect URLs:
+- "https://remotion.media/whoosh.wav" — swoosh/whoosh for transitions
+- "https://remotion.media/whip.wav" — whip sound
+- "https://remotion.media/page-turn.wav" — page flip
+- "https://remotion.media/switch.wav" — switch/click
+- "https://remotion.media/mouse-click.wav" — mouse click
+- "https://remotion.media/shutter-modern.wav" — camera shutter
+- "https://remotion.media/shutter-old.wav" — vintage camera
+
+Usage: <Audio src={whoosh} volume={0.2} />
+These are URL constants from @remotion/sfx. Use them as src for the Audio component from @remotion/media.
+Use sparingly — one whoosh per scene transition is usually enough.
+
+## Path Animations (SVG)
+Use @remotion/paths for animating SVG path drawing (line charts, signatures, flow diagrams):
+const progress = interpolate(frame, [0, 2 * fps], [0, 1], { extrapolateRight: 'clamp' });
+const { strokeDasharray, strokeDashoffset } = evolvePath(progress, svgPathString);
+<path d={svgPathString} strokeDasharray={strokeDasharray} strokeDashoffset={strokeDashoffset} fill="none" stroke="#fff" strokeWidth={3} />
+
+## Transitions Between Scenes
+For multi-scene videos, use TransitionSeries for smooth transitions:
+<TransitionSeries>
+  <TransitionSeries.Sequence durationInFrames={120}>
+    <Scene1 />
+  </TransitionSeries.Sequence>
+  <TransitionSeries.Transition
+    presentation={fade()}
+    timing={linearTiming({ durationInFrames: 15 })}
+  />
+  <TransitionSeries.Sequence durationInFrames={120}>
+    <Scene2 />
+  </TransitionSeries.Sequence>
+</TransitionSeries>
 
 ## Content Guidelines
 - Make it visually impressive and engaging
@@ -201,6 +243,20 @@ export async function POST(request: Request) {
 
     const durationInFrames = extractDuration(code);
     const narration = extractNarration(code);
+
+    // Save project to database
+    try {
+      const supabase = createAdminClient();
+      await supabase.from("projects").insert({
+        user_id: user.id,
+        title: topic.trim().slice(0, 100),
+        mode: "creative",
+        creative_code: code,
+        status: "scripted",
+      });
+    } catch (dbErr) {
+      console.error("Failed to save project:", dbErr);
+    }
 
     return NextResponse.json({ code, durationInFrames, narration });
   } catch (err: unknown) {

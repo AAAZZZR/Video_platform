@@ -21,12 +21,22 @@ export type SceneType =
   | "quote"
   | "code";
 
+/** Word-level caption for subtitle rendering */
+export type CaptionWord = {
+  text: string;
+  startMs: number;
+  endMs: number;
+  timestampMs: number | null;
+  confidence: number | null;
+};
+
 type BaseScene = {
   title: string;
   background: string;
   durationInFrames: number;
   narration?: string; // Text for TTS voiceover
   audioUrl?: string; // URL of generated TTS audio
+  captions?: CaptionWord[]; // Word-level captions for subtitles
 };
 
 /** Hero title card — big title + subtitle */

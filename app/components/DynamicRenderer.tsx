@@ -3,7 +3,9 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Player } from "@remotion/player";
 import * as RemotionLib from "remotion";
+import { createTikTokStyleCaptions } from "@remotion/captions";
 import { transform } from "sucrase";
+import type { CaptionWord } from "@/src/types";
 
 // All Remotion APIs available to AI-generated code
 const REMOTION_EXPORTS = RemotionLib;
@@ -97,16 +99,85 @@ class ErrorBoundary extends React.Component<
 }
 
 /**
- * Creates a wrapper component that plays audio alongside the dynamic component.
+ * Caption overlay for dynamic compositions — TikTok-style word highlighting.
  */
-function createWithAudio(InnerComp: React.FC, audioUrl: string): React.FC {
+const CAPTION_SWITCH_MS = 800;
+const DynamicCaptionOverlay: React.FC<{ captions: CaptionWord[] }> = ({ captions }) => {
+  const frame = RemotionLib.useCurrentFrame();
+  const { fps } = RemotionLib.useVideoConfig();
+
+  const { pages } = useMemo(
+    () => createTikTokStyleCaptions({
+      captions: captions.map((c) => ({
+        text: c.text,
+        startMs: c.startMs,
+        endMs: c.endMs,
+        timestampMs: c.timestampMs,
+        confidence: c.confidence,
+      })),
+      combineTokensWithinMilliseconds: CAPTION_SWITCH_MS,
+    }),
+    [captions],
+  );
+
+  const currentTimeMs = (frame / fps) * 1000;
+  const currentPage = pages.find((page, i) => {
+    const nextPage = pages[i + 1] ?? null;
+    const pageEndMs = nextPage ? nextPage.startMs : page.startMs + CAPTION_SWITCH_MS;
+    return currentTimeMs >= page.startMs && currentTimeMs < pageEndMs;
+  });
+
+  if (!currentPage) return null;
+
+  return React.createElement(
+    RemotionLib.AbsoluteFill,
+    { style: { justifyContent: "flex-end", alignItems: "center", paddingBottom: 60 } },
+    React.createElement(
+      "div",
+      {
+        style: {
+          fontSize: 42, fontWeight: 700, whiteSpace: "pre" as const, textAlign: "center" as const,
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          maxWidth: "80%", lineHeight: 1.4,
+        },
+      },
+      ...currentPage.tokens.map((token) => {
+        const isActive = token.fromMs <= currentTimeMs && token.toMs > currentTimeMs;
+        return React.createElement("span", {
+          key: token.fromMs,
+          style: {
+            color: isActive ? "#FFD700" : "rgba(255,255,255,0.95)",
+            textShadow: "0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.5)",
+          },
+        }, token.text);
+      }),
+    ),
+  );
+};
+
+/**
+ * Creates a wrapper that combines the dynamic component with audio + captions.
+ */
+function createWrapped(
+  InnerComp: React.FC,
+  audioUrl?: string,
+  captions?: CaptionWord[],
+): React.FC {
   const Wrapped: React.FC = () => {
-    return React.createElement(
-      RemotionLib.AbsoluteFill,
-      null,
-      React.createElement(InnerComp),
-      React.createElement(RemotionLib.Audio, { src: audioUrl, volume: 1 }),
-    );
+    const children: React.ReactElement[] = [
+      React.createElement(InnerComp, { key: "inner" }),
+    ];
+    if (audioUrl) {
+      children.push(
+        React.createElement(RemotionLib.Audio, { key: "audio", src: audioUrl, volume: 1 }),
+      );
+    }
+    if (captions && captions.length > 0) {
+      children.push(
+        React.createElement(DynamicCaptionOverlay, { key: "captions", captions }),
+      );
+    }
+    return React.createElement(RemotionLib.AbsoluteFill, null, ...children);
   };
   return Wrapped;
 }
@@ -115,6 +186,7 @@ type DynamicRendererProps = {
   code: string;
   durationInFrames: number;
   audioUrl?: string;
+  captions?: CaptionWord[];
   fps?: number;
   width?: number;
   height?: number;
@@ -124,6 +196,7 @@ export default function DynamicRenderer({
   code,
   durationInFrames,
   audioUrl,
+  captions,
   fps = 30,
   width = 1920,
   height = 1080,
@@ -135,8 +208,8 @@ export default function DynamicRenderer({
     try {
       setCompileError(null);
       const InnerComp = compileComponent(code);
-      if (audioUrl) {
-        return createWithAudio(InnerComp, audioUrl);
+      if (audioUrl || (captions && captions.length > 0)) {
+        return createWrapped(InnerComp, audioUrl, captions);
       }
       return InnerComp;
     } catch (e) {
@@ -144,7 +217,7 @@ export default function DynamicRenderer({
       setCompileError(msg);
       return null;
     }
-  }, [code, audioUrl]);
+  }, [code, audioUrl, captions]);
 
   // Reset error boundary when code changes
   const [key, setKey] = useState(0);

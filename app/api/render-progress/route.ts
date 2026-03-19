@@ -1,6 +1,7 @@
 import { getRenderProgress } from "@remotion/lambda/client";
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: Request) {
   const user = await getUser();
@@ -26,6 +27,38 @@ export async function GET(request: Request) {
       region: "us-east-1",
       functionName: process.env.REMOTION_LAMBDA_FUNCTION_NAME!,
     });
+
+    if (progress.done && progress.outputFile) {
+      try {
+        const supabase = createAdminClient();
+        await supabase
+          .from("renders")
+          .update({
+            status: "completed",
+            output_url: progress.outputFile,
+            completed_at: new Date().toISOString(),
+          })
+          .eq("lambda_id", renderId);
+      } catch (dbErr) {
+        console.error("Failed to update render:", dbErr);
+      }
+    }
+
+    if (progress.fatalErrorEncountered) {
+      try {
+        const supabase = createAdminClient();
+        await supabase
+          .from("renders")
+          .update({
+            status: "failed",
+            error_message: "Lambda render failed",
+            completed_at: new Date().toISOString(),
+          })
+          .eq("lambda_id", renderId);
+      } catch (dbErr) {
+        console.error("Failed to update render:", dbErr);
+      }
+    }
 
     return NextResponse.json({
       progress: progress.overallProgress,

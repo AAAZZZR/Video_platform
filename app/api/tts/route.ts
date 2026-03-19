@@ -3,6 +3,7 @@ import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
+import { estimateCaptions } from "@/lib/captions";
 
 async function generateTTS(text: string, voice: string): Promise<Buffer> {
   const tts = new MsEdgeTTS();
@@ -82,7 +83,9 @@ export async function POST(request: Request) {
           { expiresIn: 7200 },
         );
 
-        updatedScenes.push({ ...scene, audioUrl });
+        const durationMs = (scene.durationInFrames || 150) / 30 * 1000;
+        const captions = estimateCaptions(narration.trim(), durationMs);
+        updatedScenes.push({ ...scene, audioUrl, captions });
       } catch (err) {
         console.error(`TTS error for scene ${index}:`, err);
         updatedScenes.push(scene); // Return scene without audio on error

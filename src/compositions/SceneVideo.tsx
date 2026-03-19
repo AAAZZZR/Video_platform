@@ -1,14 +1,16 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   AbsoluteFill,
-  Audio,
   useCurrentFrame,
   useVideoConfig,
   interpolate,
   spring,
 } from "remotion";
+import { Audio } from "@remotion/media";
+import { whoosh } from "@remotion/sfx";
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
+import { createTikTokStyleCaptions } from "@remotion/captions";
 import type {
   SceneData,
   SceneVideoProps,
@@ -21,6 +23,7 @@ import type {
   ComparisonScene,
   QuoteScene,
   CodeScene,
+  CaptionWord,
 } from "@/src/types";
 import { TRANSITION_FRAMES } from "@/src/types";
 
@@ -34,6 +37,7 @@ const MONO_FONT =
   '"SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace';
 const STAGGER_DELAY = 6;
 const SCENE_PADDING = 90;
+const CAPTION_SWITCH_MS = 800;
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -53,14 +57,94 @@ function useSceneOpacity(durationInFrames: number): number {
   );
 }
 
-/** Wrapper that applies background + padding + fade envelope to every scene */
+// ---------------------------------------------------------------------------
+// Caption Overlay (TikTok-style word-by-word highlighted subtitles)
+// ---------------------------------------------------------------------------
+
+const CaptionOverlay: React.FC<{ captions: CaptionWord[] }> = ({ captions }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  const { pages } = useMemo(
+    () =>
+      createTikTokStyleCaptions({
+        captions: captions.map((c) => ({
+          text: c.text,
+          startMs: c.startMs,
+          endMs: c.endMs,
+          timestampMs: c.timestampMs,
+          confidence: c.confidence,
+        })),
+        combineTokensWithinMilliseconds: CAPTION_SWITCH_MS,
+      }),
+    [captions],
+  );
+
+  const currentTimeMs = (frame / fps) * 1000;
+
+  // Find current page
+  const currentPage = pages.find((page, i) => {
+    const nextPage = pages[i + 1] ?? null;
+    const pageEndMs = nextPage ? nextPage.startMs : page.startMs + CAPTION_SWITCH_MS;
+    return currentTimeMs >= page.startMs && currentTimeMs < pageEndMs;
+  });
+
+  if (!currentPage) return null;
+
+  return (
+    <AbsoluteFill
+      style={{
+        justifyContent: "flex-end",
+        alignItems: "center",
+        paddingBottom: 60,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 42,
+          fontWeight: 700,
+          fontFamily: FONT_FAMILY,
+          whiteSpace: "pre",
+          textAlign: "center",
+          maxWidth: "80%",
+          lineHeight: 1.4,
+        }}
+      >
+        {currentPage.tokens.map((token) => {
+          const isActive =
+            token.fromMs <= currentTimeMs && token.toMs > currentTimeMs;
+
+          return (
+            <span
+              key={token.fromMs}
+              style={{
+                color: isActive ? "#FFD700" : "rgba(255,255,255,0.95)",
+                textShadow: "0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.5)",
+              }}
+            >
+              {token.text}
+            </span>
+          );
+        })}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Scene Container
+// ---------------------------------------------------------------------------
+
+/** Wrapper that applies background + padding + fade envelope + audio + captions + sfx to every scene */
 const SceneContainer: React.FC<{
   background: string;
   durationInFrames: number;
   audioUrl?: string;
+  captions?: CaptionWord[];
+  showSfx?: boolean;
   children: React.ReactNode;
   style?: React.CSSProperties;
-}> = ({ background, durationInFrames, audioUrl, children, style }) => {
+}> = ({ background, durationInFrames, audioUrl, captions, showSfx, children, style }) => {
   const opacity = useSceneOpacity(durationInFrames);
   return (
     <AbsoluteFill
@@ -72,8 +156,19 @@ const SceneContainer: React.FC<{
         ...style,
       }}
     >
+      {/* Transition sound effect */}
+      {showSfx && <Audio src={whoosh} volume={0.15} />}
+
+      {/* Voiceover audio */}
       {audioUrl && <Audio src={audioUrl} volume={1} />}
+
+      {/* Visual content */}
       <div style={{ opacity, width: "100%", height: "100%" }}>{children}</div>
+
+      {/* Subtitle overlay */}
+      {captions && captions.length > 0 && (
+        <CaptionOverlay captions={captions} />
+      )}
     </AbsoluteFill>
   );
 };
@@ -112,6 +207,8 @@ const TitleSlide: React.FC<{ scene: TitleScene }> = ({ scene }) => {
       background={scene.background}
       durationInFrames={scene.durationInFrames}
       audioUrl={scene.audioUrl}
+      captions={scene.captions}
+      showSfx={false}
       style={{ justifyContent: "center", alignItems: "center" }}
     >
       <div
@@ -195,6 +292,8 @@ const TextSlide: React.FC<{ scene: TextScene }> = ({ scene }) => {
       background={scene.background}
       durationInFrames={scene.durationInFrames}
       audioUrl={scene.audioUrl}
+      captions={scene.captions}
+      showSfx
     >
       <div
         style={{
@@ -265,6 +364,8 @@ const BulletsSlide: React.FC<{ scene: BulletsScene }> = ({ scene }) => {
       background={scene.background}
       durationInFrames={scene.durationInFrames}
       audioUrl={scene.audioUrl}
+      captions={scene.captions}
+      showSfx
     >
       <div
         style={{
@@ -363,6 +464,8 @@ const TableSlide: React.FC<{ scene: TableScene }> = ({ scene }) => {
       background={scene.background}
       durationInFrames={scene.durationInFrames}
       audioUrl={scene.audioUrl}
+      captions={scene.captions}
+      showSfx
     >
       <div
         style={{
@@ -487,6 +590,8 @@ const ChartBarSlide: React.FC<{ scene: ChartBarScene }> = ({ scene }) => {
       background={scene.background}
       durationInFrames={scene.durationInFrames}
       audioUrl={scene.audioUrl}
+      captions={scene.captions}
+      showSfx
     >
       <div
         style={{
@@ -621,6 +726,8 @@ const StatsSlide: React.FC<{ scene: StatsScene }> = ({ scene }) => {
       background={scene.background}
       durationInFrames={scene.durationInFrames}
       audioUrl={scene.audioUrl}
+      captions={scene.captions}
+      showSfx
     >
       <div
         style={{
@@ -819,6 +926,8 @@ const ComparisonSlide: React.FC<{ scene: ComparisonScene }> = ({ scene }) => {
       background={scene.background}
       durationInFrames={scene.durationInFrames}
       audioUrl={scene.audioUrl}
+      captions={scene.captions}
+      showSfx
     >
       <div
         style={{
@@ -907,6 +1016,8 @@ const QuoteSlide: React.FC<{ scene: QuoteScene }> = ({ scene }) => {
       background={scene.background}
       durationInFrames={scene.durationInFrames}
       audioUrl={scene.audioUrl}
+      captions={scene.captions}
+      showSfx
       style={{ justifyContent: "center", alignItems: "center" }}
     >
       <div
@@ -1020,6 +1131,8 @@ const CodeSlide: React.FC<{ scene: CodeScene }> = ({ scene }) => {
       background={scene.background}
       durationInFrames={scene.durationInFrames}
       audioUrl={scene.audioUrl}
+      captions={scene.captions}
+      showSfx
     >
       <div
         style={{

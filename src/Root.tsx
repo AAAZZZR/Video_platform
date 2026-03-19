@@ -3,6 +3,7 @@ import React from "react";
 import { Composition } from "remotion";
 import type { CalculateMetadataFunction } from "remotion";
 import { SceneVideo } from "./compositions/SceneVideo";
+import { DynamicComposition, type DynamicCompositionProps } from "./compositions/DynamicComposition";
 import {
   calculateTotalDuration,
   FPS,
@@ -84,6 +85,17 @@ export const RemotionRoot: React.FC = () => {
           } satisfies SceneVideoProps
         }
         calculateMetadata={calculateMetadata}
+      />
+      <Composition
+        id="DynamicVideo"
+        component={DynamicComposition}
+        durationInFrames={300}
+        fps={FPS}
+        width={VIDEO_WIDTH}
+        height={VIDEO_HEIGHT}
+        defaultProps={{
+          code: "import React from 'react';\nimport { AbsoluteFill } from 'remotion';\nexport default () => <AbsoluteFill style={{backgroundColor:'#0a0a0a'}}/>",
+        } satisfies DynamicCompositionProps}
       />
     </>
   );
