@@ -109,6 +109,16 @@ export default function UserMenu() {
             </div>
           </div>
 
+          {/* Upgrade / Pricing link */}
+          <div className="px-2 py-1">
+            <a
+              href="/pricing"
+              className="block px-3 py-2 text-sm text-blue-400 hover:text-blue-300 hover:bg-zinc-800 rounded-lg transition-colors"
+            >
+              {profile.plan === "free" ? "⬆ Upgrade Plan" : "Manage Plan"}
+            </a>
+          </div>
+
           {/* User info */}
           <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-3">
             {profile.avatar_url ? (
