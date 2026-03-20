@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
-import { checkAndDeductCredits } from "@/lib/credits";
+import { checkCredits, estimateMaxCredits, tokensToCredits, deductCredits } from "@/lib/credits";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const SYSTEM_PROMPT = `You are a Remotion video component generator. You generate self-contained React components that create stunning animated video content.
@@ -16,7 +16,7 @@ Return ONLY the React component code. No markdown fences, no explanations, no co
    - import React from 'react';
    - import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, spring, Easing, Sequence, Series, Img, useDelayRender, continueRender, staticFile } from 'remotion';
    - import { Audio } from '@remotion/media';
-   - import { whoosh, whip, pageTurn, uiSwitch, mouseClick, shutterModern, ding } from '@remotion/sfx';
+   - import { whoosh, whip, pageTurn, uiSwitch, mouseClick, shutterModern, ding } from '@remotion/sfx'; // These are URL strings, NOT functions. Use directly: <Audio src={whoosh} />
    - import { TransitionSeries, linearTiming, springTiming } from '@remotion/transitions';
    - import { fade } from '@remotion/transitions/fade';
    - import { slide } from '@remotion/transitions/slide';
@@ -162,17 +162,12 @@ function extractNarration(code: string): string {
   return match ? match[1].trim() : "";
 }
 
+const MAX_TOKENS = 8192;
+
 export async function POST(request: Request) {
-  // Auth check
   const user = await getUser();
   if (!user) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-  }
-
-  // Credit check
-  const creditResult = await checkAndDeductCredits(user.id, "creative_gen");
-  if (!creditResult.success) {
-    return NextResponse.json({ error: creditResult.error }, { status: 403 });
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -212,6 +207,17 @@ export async function POST(request: Request) {
     userMessage += `\n\nIMPORTANT: All visible text and narration MUST be in ${language}. Translate the topic if it's in a different language.`;
   }
 
+  // Pre-check: estimate max cost and verify user has enough credits
+  const fullPrompt = systemPrompt + userMessage;
+  const estimatedCost = estimateMaxCredits(fullPrompt, MAX_TOKENS);
+  const { ok, balance } = await checkCredits(user.id, estimatedCost);
+  if (!ok) {
+    return NextResponse.json(
+      { error: `Insufficient credits. Need ~${estimatedCost}, have ${balance}.` },
+      { status: 403 },
+    );
+  }
+
   const modelId =
     model && typeof model === "string" ? model : "claude-sonnet-4-20250514";
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -219,10 +225,22 @@ export async function POST(request: Request) {
   try {
     const message = await client.messages.create({
       model: modelId,
-      max_tokens: 8192,
+      max_tokens: MAX_TOKENS,
       system: systemPrompt,
       messages: [{ role: "user", content: userMessage }],
     });
+
+    // Deduct actual token cost
+    const { input_tokens, output_tokens } = message.usage;
+    const actualCost = tokensToCredits(input_tokens, output_tokens);
+    const deductResult = await deductCredits(
+      user.id, actualCost, "creative_gen",
+      `creative generation (${input_tokens} in / ${output_tokens} out)`,
+    );
+
+    if (!deductResult.success) {
+      return NextResponse.json({ error: deductResult.error }, { status: 403 });
+    }
 
     const textBlock = message.content.find((block) => block.type === "text");
     if (!textBlock || textBlock.type !== "text") {
@@ -258,7 +276,11 @@ export async function POST(request: Request) {
       console.error("Failed to save project:", dbErr);
     }
 
-    return NextResponse.json({ code, durationInFrames, narration });
+    return NextResponse.json({
+      code, durationInFrames, narration,
+      creditsUsed: actualCost,
+      creditsRemaining: deductResult.balance,
+    });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Unknown error calling AI service.";

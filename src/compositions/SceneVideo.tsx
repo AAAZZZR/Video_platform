@@ -24,8 +24,8 @@ import type {
   QuoteScene,
   CodeScene,
   CaptionWord,
-} from "@/src/types";
-import { TRANSITION_FRAMES } from "@/src/types";
+} from "../types";
+import { TRANSITION_FRAMES } from "../types";
 
 // ---------------------------------------------------------------------------
 // Constants

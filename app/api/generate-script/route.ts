@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
-import { checkAndDeductCredits } from "@/lib/credits";
+import { checkCredits, estimateMaxCredits, tokensToCredits, deductCredits } from "@/lib/credits";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const BACKGROUNDS = [
@@ -134,17 +134,12 @@ function extractJSON(text: string): unknown {
   return null;
 }
 
+const MAX_TOKENS = 4096;
+
 export async function POST(request: Request) {
-  // Auth check
   const user = await getUser();
   if (!user) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-  }
-
-  // Credit check
-  const creditResult = await checkAndDeductCredits(user.id, "script_gen");
-  if (!creditResult.success) {
-    return NextResponse.json({ error: creditResult.error }, { status: 403 });
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -183,16 +178,39 @@ export async function POST(request: Request) {
     userMessage += `\n\nIMPORTANT: The target language is ${language}. ALL text content (titles, body, bullets, table data, stats, narration, quotes — everything the viewer sees or hears) MUST be in ${language}. Translate/adapt the topic if it is in a different language.`;
   }
 
+  // Pre-check: estimate max cost
+  const fullPrompt = SYSTEM_PROMPT + userMessage;
+  const estimatedCost = estimateMaxCredits(fullPrompt, MAX_TOKENS);
+  const { ok, balance } = await checkCredits(user.id, estimatedCost);
+  if (!ok) {
+    return NextResponse.json(
+      { error: `Insufficient credits. Need ~${estimatedCost}, have ${balance}.` },
+      { status: 403 },
+    );
+  }
+
   const modelId = model && typeof model === "string" ? model : "claude-sonnet-4-20250514";
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   try {
     const message = await client.messages.create({
       model: modelId,
-      max_tokens: 4096,
+      max_tokens: MAX_TOKENS,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }],
     });
+
+    // Deduct actual token cost
+    const { input_tokens, output_tokens } = message.usage;
+    const actualCost = tokensToCredits(input_tokens, output_tokens);
+    const deductResult = await deductCredits(
+      user.id, actualCost, "script_gen",
+      `script generation (${input_tokens} in / ${output_tokens} out)`,
+    );
+
+    if (!deductResult.success) {
+      return NextResponse.json({ error: deductResult.error }, { status: 403 });
+    }
 
     const textBlock = message.content.find((block) => block.type === "text");
     if (!textBlock || textBlock.type !== "text") {
@@ -226,10 +244,13 @@ export async function POST(request: Request) {
       });
     } catch (dbErr) {
       console.error("Failed to save project:", dbErr);
-      // Don't fail the request if DB save fails
     }
 
-    return NextResponse.json(parsed);
+    return NextResponse.json({
+      ...parsed as object,
+      creditsUsed: actualCost,
+      creditsRemaining: deductResult.balance,
+    });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Unknown error calling AI service.";

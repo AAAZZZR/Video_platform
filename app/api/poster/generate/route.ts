@@ -1,21 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
-import { checkAndDeductCredits } from "@/lib/credits";
+import { checkCredits, estimateMaxCredits, tokensToCredits, deductCredits } from "@/lib/credits";
 import { BASE_SYSTEM_PROMPT } from "@/skills/poster/base-prompt";
 import { detectSkills } from "@/skills/poster/detector";
 import { loadSkills } from "@/skills/poster/loader";
 import { PosterOutputSchema } from "@/skills/poster/schema";
 
+const MAX_TOKENS = 8192;
+
 export async function POST(request: Request) {
   const user = await getUser();
   if (!user) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-  }
-
-  const creditResult = await checkAndDeductCredits(user.id, "creative_gen");
-  if (!creditResult.success) {
-    return NextResponse.json({ error: creditResult.error }, { status: 403 });
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -59,16 +56,39 @@ ${language ? `- Language: ${language}` : ""}
 
 Remember: Return ONLY valid JSON with html, width, height, and title fields.`;
 
+    // Pre-check: estimate max cost
+    const fullPrompt = systemPrompt + userMessage;
+    const estimatedCost = estimateMaxCredits(fullPrompt, MAX_TOKENS);
+    const { ok, balance } = await checkCredits(user.id, estimatedCost);
+    if (!ok) {
+      return NextResponse.json(
+        { error: `Insufficient credits. Need ~${estimatedCost}, have ${balance}.` },
+        { status: 403 },
+      );
+    }
+
     // Step 4: Generate poster (main model)
     const modelId = model && typeof model === "string" ? model : "claude-sonnet-4-20250514";
     const client = new Anthropic({ apiKey });
 
     const message = await client.messages.create({
       model: modelId,
-      max_tokens: 8192,
+      max_tokens: MAX_TOKENS,
       system: systemPrompt,
       messages: [{ role: "user", content: userMessage }],
     });
+
+    // Deduct actual token cost
+    const { input_tokens, output_tokens } = message.usage;
+    const actualCost = tokensToCredits(input_tokens, output_tokens);
+    const deductResult = await deductCredits(
+      user.id, actualCost, "poster_gen",
+      `poster generation (${input_tokens} in / ${output_tokens} out)`,
+    );
+
+    if (!deductResult.success) {
+      return NextResponse.json({ error: deductResult.error }, { status: 403 });
+    }
 
     const textBlock = message.content.find((b) => b.type === "text");
     if (!textBlock || textBlock.type !== "text") {
@@ -78,10 +98,8 @@ Remember: Return ONLY valid JSON with html, width, height, and title fields.`;
     // Step 5: Parse and validate
     let parsed: unknown;
     try {
-      // Try direct parse
       parsed = JSON.parse(textBlock.text);
     } catch {
-      // Try extracting JSON from response
       const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
@@ -106,6 +124,8 @@ Remember: Return ONLY valid JSON with html, width, height, and title fields.`;
     return NextResponse.json({
       ...validated.data,
       detectedSkills,
+      creditsUsed: actualCost,
+      creditsRemaining: deductResult.balance,
     });
   } catch (err) {
     console.error("Poster generation error:", err);

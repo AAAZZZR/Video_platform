@@ -65,32 +65,16 @@ export default function UserMenu() {
     fetchProfile();
   }, [supabase]);
 
-  // After checkout success, poll until profile reflects the upgraded plan
+  // After checkout success: clean URL, wait for webhook, reload
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") !== "success") return;
 
     setCheckoutSuccess(true);
-    // Clean up URL
+    // Remove query param so reload won't loop
     window.history.replaceState({}, "", window.location.pathname);
-
-    let attempts = 0;
-    const maxAttempts = 10;
-    const interval = setInterval(async () => {
-      attempts++;
-      const updated = await fetchProfile();
-      if ((updated && updated.plan !== "free") || attempts >= maxAttempts) {
-        clearInterval(interval);
-        if (updated && updated.plan !== "free") {
-          // Brief delay so user sees the updated state
-          setTimeout(() => setCheckoutSuccess(false), 3000);
-        } else {
-          setCheckoutSuccess(false);
-        }
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
+    // Give webhook time to process, then hard reload to get fresh data
+    setTimeout(() => window.location.reload(), 3000);
   }, []);
 
   useEffect(() => {
@@ -116,10 +100,8 @@ export default function UserMenu() {
     <div className="relative" ref={menuRef}>
       {/* Checkout success toast */}
       {checkoutSuccess && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-medium animate-in fade-in slide-in-from-top-2">
-          {profile.plan !== "free"
-            ? `Upgraded to ${planConfig.name}! ${profile.credits} credits ready.`
-            : "Processing your subscription..."}
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-medium">
+          Subscription confirmed! Refreshing...
         </div>
       )}
       <button
