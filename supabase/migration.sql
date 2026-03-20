@@ -128,6 +128,13 @@ create policy "credit_logs_select_own" on public.credit_logs
 create policy "transactions_select_own" on public.transactions
   for select using (auth.uid() = user_id);
 
+-- Service role needs full access (used by Stripe webhook via admin client)
+grant all on public.profiles to service_role;
+grant all on public.projects to service_role;
+grant all on public.renders to service_role;
+grant all on public.credit_logs to service_role;
+grant all on public.transactions to service_role;
+
 -- =============================================
 -- 7. Auto-create profile on signup
 -- Handles both Google OAuth and email signup

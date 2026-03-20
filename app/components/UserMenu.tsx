@@ -26,41 +26,72 @@ function getAvatarColor(email: string) {
 export default function UserMenu() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [open, setOpen] = useState(false);
+  const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
-  useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  const fetchProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
 
-      // Try to get profile from DB
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
 
-      if (data) {
-        setProfile(data as Profile);
-      } else {
-        // Fallback: build profile from auth user data (profile row might not exist yet)
-        setProfile({
-          id: user.id,
-          email: user.email || "",
-          name: user.user_metadata?.full_name || user.user_metadata?.name || null,
-          avatar_url: user.user_metadata?.avatar_url || null,
-          plan: "free",
-          credits: 30,
-          stripe_customer_id: null,
-          stripe_subscription_id: null,
-          created_at: user.created_at,
-          updated_at: user.created_at,
-        });
-      }
+    if (data) {
+      setProfile(data as Profile);
+      return data as Profile;
+    } else {
+      const fallback: Profile = {
+        id: user.id,
+        email: user.email || "",
+        name: user.user_metadata?.full_name || user.user_metadata?.name || null,
+        avatar_url: user.user_metadata?.avatar_url || null,
+        plan: "free",
+        credits: 30,
+        stripe_customer_id: null,
+        stripe_subscription_id: null,
+        created_at: user.created_at,
+        updated_at: user.created_at,
+      };
+      setProfile(fallback);
+      return fallback;
     }
-    load();
+  };
+
+  useEffect(() => {
+    fetchProfile();
   }, [supabase]);
+
+  // After checkout success, poll until profile reflects the upgraded plan
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") !== "success") return;
+
+    setCheckoutSuccess(true);
+    // Clean up URL
+    window.history.replaceState({}, "", window.location.pathname);
+
+    let attempts = 0;
+    const maxAttempts = 10;
+    const interval = setInterval(async () => {
+      attempts++;
+      const updated = await fetchProfile();
+      if ((updated && updated.plan !== "free") || attempts >= maxAttempts) {
+        clearInterval(interval);
+        if (updated && updated.plan !== "free") {
+          // Brief delay so user sees the updated state
+          setTimeout(() => setCheckoutSuccess(false), 3000);
+        } else {
+          setCheckoutSuccess(false);
+        }
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -83,6 +114,14 @@ export default function UserMenu() {
 
   return (
     <div className="relative" ref={menuRef}>
+      {/* Checkout success toast */}
+      {checkoutSuccess && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-medium animate-in fade-in slide-in-from-top-2">
+          {profile.plan !== "free"
+            ? `Upgraded to ${planConfig.name}! ${profile.credits} credits ready.`
+            : "Processing your subscription..."}
+        </div>
+      )}
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 cursor-pointer"
