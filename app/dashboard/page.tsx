@@ -152,9 +152,15 @@ export default function DashboardPage() {
           <nav className="flex items-center gap-4">
             <Link
               href="/create"
-              className="text-sm px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium hover:from-blue-600 hover:to-purple-700 transition-all"
+              className="text-sm text-zinc-400 hover:text-white transition-colors"
             >
-              Create Video
+              Video
+            </Link>
+            <Link
+              href="/poster"
+              className="text-sm text-zinc-400 hover:text-white transition-colors"
+            >
+              Poster
             </Link>
             <Link
               href="/dashboard"

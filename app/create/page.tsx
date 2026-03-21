@@ -1074,14 +1074,21 @@ export default function Home() {
       <header className="border-b border-zinc-800 bg-[#09090b]/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold text-white tracking-tight">VidCraft AI</span>
+            <a href="/" className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+              </div>
+              <span className="text-xl font-bold text-white tracking-tight">VidCraft AI</span>
+            </a>
           </div>
-          <UserMenu />
+          <nav className="flex items-center gap-4">
+            <span className="text-sm text-white font-medium px-3 py-2 rounded-lg bg-zinc-800">Video</span>
+            <a href="/poster" className="text-sm text-zinc-400 hover:text-white transition-colors">Poster</a>
+            <a href="/dashboard" className="text-sm text-zinc-400 hover:text-white transition-colors">Dashboard</a>
+            <UserMenu />
+          </nav>
         </div>
       </header>
 

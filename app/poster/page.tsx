@@ -136,11 +136,10 @@ body{margin:0;display:flex;justify-content:center;align-items:center;min-height:
               </div>
               <span className="text-xl font-bold tracking-tight">VidCraft AI</span>
             </a>
-            <span className="text-zinc-600 mx-2">/</span>
-            <span className="text-lg font-semibold text-zinc-300">Poster</span>
           </div>
           <nav className="flex items-center gap-4">
             <a href="/create" className="text-sm text-zinc-400 hover:text-white transition-colors">Video</a>
+            <span className="text-sm text-white font-medium px-3 py-2 rounded-lg bg-zinc-800">Poster</span>
             <a href="/dashboard" className="text-sm text-zinc-400 hover:text-white transition-colors">Dashboard</a>
           </nav>
         </div>

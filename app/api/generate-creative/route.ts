@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
+import { transform } from "sucrase";
 import { getUser } from "@/lib/auth";
 import { checkCredits, estimateMaxCredits, tokensToCredits, deductCredits } from "@/lib/credits";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -176,6 +177,19 @@ function extractNarration(code: string): string {
   return match ? match[1].trim() : "";
 }
 
+/** Validate that the code compiles with Sucrase (same transforms as client DynamicRenderer) */
+function validateCode(code: string): string | null {
+  try {
+    transform(code, {
+      transforms: ["jsx", "typescript", "imports"],
+      jsxRuntime: "classic",
+    });
+    return null; // no error
+  } catch (e) {
+    return e instanceof Error ? e.message : "Unknown compilation error";
+  }
+}
+
 const MAX_TOKENS = 8192;
 
 export async function POST(request: Request) {
@@ -245,40 +259,65 @@ export async function POST(request: Request) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   try {
-    const message = await client.messages.create({
-      model: modelId,
-      max_tokens: MAX_TOKENS,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
-    });
+    const messages: Anthropic.MessageParam[] = [{ role: "user", content: userMessage }];
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+    let code = "";
+    const MAX_ATTEMPTS = 2;
 
-    // Deduct actual token cost
-    const { input_tokens, output_tokens } = message.usage;
-    const actualCost = tokensToCredits(input_tokens, output_tokens);
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const message = await client.messages.create({
+        model: modelId,
+        max_tokens: MAX_TOKENS,
+        system: systemPrompt,
+        messages,
+      });
+
+      totalInputTokens += message.usage.input_tokens;
+      totalOutputTokens += message.usage.output_tokens;
+
+      const textBlock = message.content.find((block) => block.type === "text");
+      if (!textBlock || textBlock.type !== "text") {
+        return NextResponse.json(
+          { error: "No text response received from AI." },
+          { status: 500 },
+        );
+      }
+
+      code = extractCode(textBlock.text);
+
+      if (!code || code.length < 50) {
+        return NextResponse.json(
+          { error: "AI returned insufficient code. Please try again." },
+          { status: 500 },
+        );
+      }
+
+      // Validate syntax with Sucrase
+      const compileError = validateCode(code);
+      if (!compileError) break; // valid code, done
+
+      if (attempt < MAX_ATTEMPTS - 1) {
+        // Retry: send the error back to Claude for a fix
+        messages.push(
+          { role: "assistant", content: textBlock.text },
+          { role: "user", content: `The code above has a compilation error:\n\n${compileError}\n\nPlease fix the error and return the COMPLETE corrected code. Same rules apply: no markdown fences, no explanations, just the raw code.` },
+        );
+        console.log(`Creative gen attempt ${attempt + 1} failed, retrying: ${compileError}`);
+      } else {
+        console.warn(`Creative gen failed after ${MAX_ATTEMPTS} attempts: ${compileError}`);
+      }
+    }
+
+    // Deduct total cost for all attempts
+    const actualCost = tokensToCredits(totalInputTokens, totalOutputTokens);
     const deductResult = await deductCredits(
       user.id, actualCost, "creative_gen",
-      `creative generation (${input_tokens} in / ${output_tokens} out)`,
+      `creative generation (${totalInputTokens} in / ${totalOutputTokens} out)`,
     );
 
     if (!deductResult.success) {
       return NextResponse.json({ error: deductResult.error }, { status: 403 });
-    }
-
-    const textBlock = message.content.find((block) => block.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
-      return NextResponse.json(
-        { error: "No text response received from AI." },
-        { status: 500 },
-      );
-    }
-
-    const code = extractCode(textBlock.text);
-
-    if (!code || code.length < 50) {
-      return NextResponse.json(
-        { error: "AI returned insufficient code. Please try again." },
-        { status: 500 },
-      );
     }
 
     let durationInFrames = extractDuration(code);
