@@ -37,6 +37,13 @@ const SCENE_TYPE_OPTIONS: { value: SceneType; label: string; color: string }[] =
     { value: "code", label: "Code", color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
   ];
 
+const DURATION_OPTIONS = [
+  { value: 30, label: "30s", description: "Short" },
+  { value: 60, label: "60s", description: "Standard" },
+  { value: 90, label: "90s", description: "Extended" },
+  { value: 120, label: "2 min", description: "Long" },
+];
+
 function getSceneTypeMeta(type: SceneType) {
   return SCENE_TYPE_OPTIONS.find((o) => o.value === type) ?? SCENE_TYPE_OPTIONS[1];
 }
@@ -155,6 +162,7 @@ export default function Home() {
   const [topic, setTopic] = useState("");
   const [selectedModel, setSelectedModel] = useState("claude-sonnet-4-20250514");
   const [selectedVoice, setSelectedVoice] = useState("zh-TW-HsiaoChenNeural");
+  const [targetDuration, setTargetDuration] = useState(60);
   const [scenes, setScenes] = useState<SceneData[]>([]);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
@@ -190,7 +198,7 @@ export default function Home() {
       const scriptRes = await fetch("/api/generate-script", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, model: selectedModel, language: getLanguageFromVoice(selectedVoice) }),
+        body: JSON.stringify({ topic, model: selectedModel, language: getLanguageFromVoice(selectedVoice), targetDuration }),
       });
       const scriptData = await scriptRes.json();
       if (!scriptRes.ok) {
@@ -234,7 +242,7 @@ export default function Home() {
       const res = await fetch("/api/generate-creative", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, model: selectedModel, language: getLanguageFromVoice(selectedVoice) }),
+        body: JSON.stringify({ topic, model: selectedModel, language: getLanguageFromVoice(selectedVoice), targetDuration }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Generation failed");
@@ -1150,6 +1158,25 @@ export default function Home() {
                   <label className="block text-xs text-zinc-500 mb-2">Voice</label>
                   <VoiceSelector value={selectedVoice} onChange={setSelectedVoice} />
                 </div>
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-2">Target Duration</label>
+                  <div className="flex gap-2">
+                    {DURATION_OPTIONS.map((d) => (
+                      <button
+                        key={d.value}
+                        onClick={() => setTargetDuration(d.value)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer border ${
+                          targetDuration === d.value
+                            ? "bg-blue-600/20 border-blue-500/50 text-blue-300"
+                            : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600"
+                        }`}
+                      >
+                        {d.label}
+                        <span className="ml-1.5 text-xs opacity-60">{d.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 {generateError && (
                   <div className="bg-red-950/50 border border-red-900 rounded-lg p-3">
                     <p className="text-red-400 text-sm">{generateError}</p>
@@ -1223,6 +1250,25 @@ export default function Home() {
                   </div>
                 </div>
                 <VoiceSelector value={selectedVoice} onChange={setSelectedVoice} />
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-2">Target Duration</label>
+                  <div className="flex gap-2">
+                    {DURATION_OPTIONS.map((d) => (
+                      <button
+                        key={d.value}
+                        onClick={() => setTargetDuration(d.value)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer border ${
+                          targetDuration === d.value
+                            ? "bg-blue-600/20 border-blue-500/50 text-blue-300"
+                            : "bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600"
+                        }`}
+                      >
+                        {d.label}
+                        <span className="ml-1.5 text-xs opacity-60">{d.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 {generateError && (
                   <div className="bg-red-950/50 border border-red-900 rounded-lg p-3">
                     <p className="text-red-400 text-sm">{generateError}</p>

@@ -157,7 +157,7 @@ const SceneContainer: React.FC<{
       }}
     >
       {/* Transition sound effect */}
-      {showSfx && <Audio src={whoosh} volume={0.15} />}
+      {showSfx && whoosh && <Audio src={whoosh} volume={0.15} />}
 
       {/* Voiceover audio */}
       {audioUrl && <Audio src={audioUrl} volume={1} />}

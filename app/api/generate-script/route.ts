@@ -149,7 +149,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { topic?: string; sceneCount?: number; language?: string; model?: string };
+  let body: { topic?: string; sceneCount?: number; language?: string; model?: string; targetDuration?: number };
 
   try {
     body = await request.json();
@@ -160,7 +160,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { topic, sceneCount, language, model } = body;
+  const { topic, sceneCount, language, model, targetDuration } = body;
 
   if (!topic || typeof topic !== "string" || topic.trim().length === 0) {
     return NextResponse.json(
@@ -169,11 +169,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const count = sceneCount && sceneCount >= 3 && sceneCount <= 15
-    ? sceneCount
-    : 7;
+  const validDurations = [30, 60, 90, 120];
+  const duration = targetDuration && validDurations.includes(targetDuration) ? targetDuration : null;
+  const count = duration
+    ? Math.min(15, Math.max(3, Math.round(duration / 8)))
+    : (sceneCount && sceneCount >= 3 && sceneCount <= 15 ? sceneCount : 7);
 
   let userMessage = `Create a ${count}-scene video script about: ${topic.trim()}`;
+  if (duration) {
+    const avgPerScene = Math.round(duration / count);
+    userMessage += `\n\nTARGET DURATION: The total video should be approximately ${duration} seconds (${duration * 30} frames at 30fps). With ${count} scenes, aim for roughly ${avgPerScene} seconds (${avgPerScene * 30} frames) per scene. Adjust durationInFrames for each scene accordingly — title/quote scenes can be shorter (~${Math.max(3, avgPerScene - 2)}s), content-heavy scenes like tables/charts/comparisons can be longer (~${avgPerScene + 2}s). The sum of all durationInFrames should be close to ${duration * 30} frames total.`;
+  }
   if (language) {
     userMessage += `\n\nIMPORTANT: The target language is ${language}. ALL text content (titles, body, bullets, table data, stats, narration, quotes — everything the viewer sees or hears) MUST be in ${language}. Translate/adapt the topic if it is in a different language.`;
   }

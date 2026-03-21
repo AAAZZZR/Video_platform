@@ -191,7 +191,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { topic?: string; model?: string; language?: string };
+  let body: { topic?: string; model?: string; language?: string; targetDuration?: number };
 
   try {
     body = await request.json();
@@ -202,7 +202,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { topic, model, language } = body;
+  const { topic, model, language, targetDuration } = body;
 
   if (!topic || typeof topic !== "string" || topic.trim().length === 0) {
     return NextResponse.json(
@@ -211,12 +211,20 @@ export async function POST(request: Request) {
     );
   }
 
+  const validDurations = [30, 60, 90, 120];
+  const duration = targetDuration && validDurations.includes(targetDuration) ? targetDuration : null;
+  const targetFrames = duration ? duration * 30 : null;
+
   let systemPrompt = SYSTEM_PROMPT;
   if (language) {
     systemPrompt += `\n\n## Language (CRITICAL)\nThe target language is ${language}. ALL visible text content (titles, labels, descriptions) and the NARRATION comment MUST be in ${language}, regardless of what language the user's input is in. Translate/adapt if needed. Keep code syntax, variable names, and imports in English.`;
   }
 
   let userMessage = `Create an animated Remotion video component about: ${topic.trim()}`;
+  if (targetFrames && duration) {
+    const sections = Math.max(3, Math.round(targetFrames / 120));
+    userMessage += `\n\nTARGET DURATION: The video MUST be exactly ${targetFrames} frames (${duration} seconds at 30fps). Set "// DURATION: ${targetFrames}" at the top. Structure the video with ~${sections} sections to fill the full duration. Each section should have animations spanning its entire length — no dead time.`;
+  }
   if (language) {
     userMessage += `\n\nIMPORTANT: All visible text and narration MUST be in ${language}. Translate the topic if it's in a different language.`;
   }
@@ -273,7 +281,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const durationInFrames = extractDuration(code);
+    let durationInFrames = extractDuration(code);
+    if (durationInFrames === 300 && targetFrames) {
+      durationInFrames = targetFrames;
+    }
     const narration = extractNarration(code);
 
     // Save project to database
