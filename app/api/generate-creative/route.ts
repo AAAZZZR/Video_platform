@@ -190,8 +190,6 @@ function validateCode(code: string): string | null {
   }
 }
 
-const MAX_TOKENS = 8192;
-
 export async function POST(request: Request) {
   const user = await getUser();
   if (!user) {
@@ -245,7 +243,10 @@ export async function POST(request: Request) {
 
   // Pre-check: estimate max cost and verify user has enough credits
   const fullPrompt = systemPrompt + userMessage;
-  const estimatedCost = estimateMaxCredits(fullPrompt, MAX_TOKENS);
+  // No artificial cap — longer videos just cost more credits.
+  // 16384 is the model-max for Sonnet 4 / Opus 4.
+  const maxOutputTokens = 16384;
+  const estimatedCost = estimateMaxCredits(fullPrompt, maxOutputTokens);
   const { ok, balance } = await checkCredits(user.id, estimatedCost);
   if (!ok) {
     return NextResponse.json(
@@ -268,7 +269,7 @@ export async function POST(request: Request) {
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       const message = await client.messages.create({
         model: modelId,
-        max_tokens: MAX_TOKENS,
+        max_tokens: maxOutputTokens,
         system: systemPrompt,
         messages,
       });
