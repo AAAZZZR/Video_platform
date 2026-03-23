@@ -32,10 +32,10 @@ No other npm packages are available (no framer-motion, no lodash, no axios, etc.
 2. All content is self-contained in the code
 
 ## Styling
-- Tailwind CSS is available — you CAN use className with Tailwind utilities (e.g., className="flex items-center bg-black text-white p-4")
-- Inline styles also work: style={{ ... }}
-- Use whichever is more convenient. Both work.
-- No CSS modules or external stylesheets.
+- Use inline styles: style={{ ... }}
+- Tailwind className is supported for rendering but may not appear in preview, so prefer inline styles for visual properties
+- Use AbsoluteFill as the root container
+- No CSS modules or external stylesheets
 
 ## Animation Rules
 - ALL motion/animation MUST be driven by useCurrentFrame() + interpolate() or spring()

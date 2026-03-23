@@ -381,7 +381,7 @@ export default function Home() {
       const data = await res.json();
 
       if (data.fatalErrorEncountered) {
-        setError("Render failed on Lambda");
+        setError(data.errorMessage || "Render failed on Lambda");
         setRenderState("error");
         return;
       }

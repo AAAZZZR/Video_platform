@@ -60,11 +60,20 @@ export async function GET(request: Request) {
       }
     }
 
+    // Extract error details from Lambda if available
+    let errorMessage: string | undefined;
+    if (progress.fatalErrorEncountered) {
+      const errors = progress.errors ?? [];
+      errorMessage = errors.map((e) => e.message).join("; ") || "Unknown Lambda error";
+      console.error("Lambda render errors:", errors);
+    }
+
     return NextResponse.json({
       progress: progress.overallProgress,
       done: progress.done,
       outputUrl: progress.outputFile,
       fatalErrorEncountered: progress.fatalErrorEncountered,
+      errorMessage,
     });
   } catch (error) {
     console.error("Progress check error:", error);

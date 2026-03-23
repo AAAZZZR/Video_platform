@@ -233,15 +233,6 @@ export default function DynamicRenderer({
     }
   }, [code, audioUrl, captions]);
 
-  // Load Tailwind CDN for dynamic className support in AI-generated code
-  useEffect(() => {
-    if (document.getElementById("tailwind-cdn")) return;
-    const script = document.createElement("script");
-    script.id = "tailwind-cdn";
-    script.src = "https://cdn.tailwindcss.com";
-    document.head.appendChild(script);
-  }, []);
-
   // Reset error boundary when code changes
   const [key, setKey] = useState(0);
   useEffect(() => {
