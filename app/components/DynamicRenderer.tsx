@@ -3,35 +3,25 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Player } from "@remotion/player";
 import * as RemotionLib from "remotion";
-// @remotion/transitions is on 4.0.436 (same as core) — safe to import
+import * as RemotionMedia from "@remotion/media";
+import * as RemotionSfx from "@remotion/sfx";
 import * as RemotionTransitions from "@remotion/transitions";
 import * as RemotionTransitionsFade from "@remotion/transitions/fade";
 import * as RemotionTransitionsSlide from "@remotion/transitions/slide";
+import * as RemotionPaths from "@remotion/paths";
 import { createTikTokStyleCaptions } from "@remotion/captions";
 import { transform } from "sucrase";
 import type { CaptionWord } from "@/src/types";
 
-// Shims for packages at 4.0.437 (can't import directly — version conflict with core 4.0.436)
-// These are only for client-side preview; Lambda render uses the real packages via DynamicComposition.
-const RemotionMediaShim = { Audio: RemotionLib.Audio };
-// SFX exports are URL strings, not functions
-const RemotionSfxShim = { whoosh: "", whip: "", pageTurn: "", uiSwitch: "", mouseClick: "", shutterModern: "", ding: "" };
-const RemotionPathsShim = {
-  evolvePath: (progress: number, path: string) => path,
-  getLength: () => 0,
-  getPointAtLength: () => ({ x: 0, y: 0 }),
-  getTangentAtLength: () => ({ x: 1, y: 0 }),
-};
-
 const MODULE_MAP: Record<string, unknown> = {
   "react": React,
   "remotion": RemotionLib,
-  "@remotion/media": RemotionMediaShim,
-  "@remotion/sfx": RemotionSfxShim,
+  "@remotion/media": RemotionMedia,
+  "@remotion/sfx": RemotionSfx,
   "@remotion/transitions": RemotionTransitions,
   "@remotion/transitions/fade": RemotionTransitionsFade,
   "@remotion/transitions/slide": RemotionTransitionsSlide,
-  "@remotion/paths": RemotionPathsShim,
+  "@remotion/paths": RemotionPaths,
 };
 
 /**
@@ -242,6 +232,15 @@ export default function DynamicRenderer({
       return null;
     }
   }, [code, audioUrl, captions]);
+
+  // Load Tailwind CDN for dynamic className support in AI-generated code
+  useEffect(() => {
+    if (document.getElementById("tailwind-cdn")) return;
+    const script = document.createElement("script");
+    script.id = "tailwind-cdn";
+    script.src = "https://cdn.tailwindcss.com";
+    document.head.appendChild(script);
+  }, []);
 
   // Reset error boundary when code changes
   const [key, setKey] = useState(0);
