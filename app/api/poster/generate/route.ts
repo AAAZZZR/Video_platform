@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 - Content: ${topic.trim()}
 ${language ? `- Language: ${language}` : ""}
 
-Remember: Return ONLY valid JSON with html, width, height, and title fields.`;
+Remember: Return ONLY valid JSON with title, width, height, background, and elements fields. No HTML.`;
 
     // Pre-check: estimate max cost
     const fullPrompt = systemPrompt + userMessage;

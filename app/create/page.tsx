@@ -22,6 +22,11 @@ const DynamicRenderer = dynamic(
   { ssr: false },
 );
 
+const ScenePreview = dynamic(
+  () => import("@/app/components/ScenePreview"),
+  { ssr: false },
+);
+
 // ---- Scene Type Config ----
 
 const SCENE_TYPE_OPTIONS: { value: SceneType; label: string; color: string }[] =
@@ -183,6 +188,7 @@ export default function Home() {
   const [creativeAudioUrl, setCreativeAudioUrl] = useState<string | null>(null);
   const [creativeCaptions, setCreativeCaptions] = useState<import("@/src/types").CaptionWord[]>([]);
   const [generatingCreative, setGeneratingCreative] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // ============================================================
   // Template Mode: Merged Generate (Script + Audio)
@@ -343,6 +349,15 @@ export default function Home() {
   // ============================================================
   // Render
   // ============================================================
+
+  const handleExportPptx = async () => {
+    try {
+      const { exportToPptx } = await import("@/lib/export-pptx");
+      await exportToPptx(scenes);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "PPT export failed");
+    }
+  };
 
   const startRender = async () => {
     setRenderState("rendering");
@@ -899,65 +914,80 @@ export default function Home() {
 
                   {/* Expanded detail */}
                   {isExpanded && (
-                    <div className="border-t border-zinc-800 px-5 py-5 space-y-4">
-                      {/* Scene type + title row */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-xs text-zinc-500 mb-1.5">Scene Type</label>
-                          <select
-                            value={scene.type}
-                            onChange={(e) => changeSceneType(index, e.target.value as SceneType)}
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
-                          >
-                            {SCENE_TYPE_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs text-zinc-500 mb-1.5">Title</label>
-                          <input
-                            type="text"
-                            value={scene.title}
-                            onChange={(e) => updateSceneField(index, "title", e.target.value)}
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-zinc-500 mb-1.5">Duration (seconds)</label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={30}
-                            step={0.5}
-                            value={scene.durationInFrames / FPS}
-                            onChange={(e) =>
-                              updateSceneField(index, "durationInFrames", Math.round(parseFloat(e.target.value) * FPS) || FPS)
-                            }
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
-                          />
-                        </div>
-                      </div>
+                    <div className="border-t border-zinc-800 px-5 py-5">
+                      <div className="flex flex-col lg:flex-row gap-5">
+                        {/* Left: Editor controls */}
+                        <div className="flex-1 min-w-0 space-y-4">
+                          {/* Scene type + title row */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <label className="block text-xs text-zinc-500 mb-1.5">Scene Type</label>
+                              <select
+                                value={scene.type}
+                                onChange={(e) => changeSceneType(index, e.target.value as SceneType)}
+                                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+                              >
+                                {SCENE_TYPE_OPTIONS.map((opt) => (
+                                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-zinc-500 mb-1.5">Title</label>
+                              <input
+                                type="text"
+                                value={scene.title}
+                                onChange={(e) => updateSceneField(index, "title", e.target.value)}
+                                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-zinc-500 mb-1.5">Duration (seconds)</label>
+                              <input
+                                type="number"
+                                min={1}
+                                max={30}
+                                step={0.5}
+                                value={scene.durationInFrames / FPS}
+                                onChange={(e) =>
+                                  updateSceneField(index, "durationInFrames", Math.round(parseFloat(e.target.value) * FPS) || FPS)
+                                }
+                                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                              />
+                            </div>
+                          </div>
 
-                      {/* Type-specific fields */}
-                      {renderSceneFields(scene, index)}
+                          {/* Type-specific fields */}
+                          {renderSceneFields(scene, index)}
 
-                      {/* Background picker */}
-                      <div>
-                        <label className="block text-xs text-zinc-500 mb-1.5">Background</label>
-                        <div className="flex gap-2 flex-wrap">
-                          {BACKGROUND_PRESETS.map((preset, pi) => (
-                            <button
-                              key={pi}
-                              onClick={() => updateSceneField(index, "background", preset)}
-                              className="w-8 h-8 rounded-lg cursor-pointer transition-transform hover:scale-110"
-                              style={{
-                                background: preset,
-                                outline: scene.background === preset ? "2px solid #3b82f6" : "2px solid transparent",
-                                outlineOffset: 2,
-                              }}
-                            />
-                          ))}
+                          {/* Background picker */}
+                          <div>
+                            <label className="block text-xs text-zinc-500 mb-1.5">Background</label>
+                            <div className="flex gap-2 flex-wrap">
+                              {BACKGROUND_PRESETS.map((preset, pi) => (
+                                <button
+                                  key={pi}
+                                  onClick={() => updateSceneField(index, "background", preset)}
+                                  className="w-8 h-8 rounded-lg cursor-pointer transition-transform hover:scale-110"
+                                  style={{
+                                    background: preset,
+                                    outline: scene.background === preset ? "2px solid #3b82f6" : "2px solid transparent",
+                                    outlineOffset: 2,
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right: Single-scene preview */}
+                        <div className="lg:w-[45%] lg:shrink-0">
+                          <div className="sticky top-32">
+                            <label className="block text-xs text-zinc-500 mb-1.5">Preview</label>
+                            <div className="rounded-lg overflow-hidden border border-zinc-800 bg-black">
+                              <ScenePreview scene={scene} />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -975,17 +1005,31 @@ export default function Home() {
           <h2 className="text-sm font-medium text-zinc-400 uppercase tracking-wider mb-5">Render</h2>
 
           {renderState === "idle" && (
-            <button
-              onClick={startRender}
-              disabled={scenes.length === 0}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold py-3 px-6 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="2" y="3" width="20" height="14" rx="2" />
-                <path d="M8 21h8M12 17v4" />
-              </svg>
-              Render Video on Cloud
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={startRender}
+                disabled={scenes.length === 0}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold py-3 px-6 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2" />
+                  <path d="M8 21h8M12 17v4" />
+                </svg>
+                Render Video on Cloud
+              </button>
+              <button
+                onClick={handleExportPptx}
+                disabled={scenes.length === 0}
+                className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold py-3 px-6 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <path d="M12 18v-6M9 15l3 3 3-3" />
+                </svg>
+                Export PPT
+              </button>
+            </div>
           )}
 
           {renderState === "rendering" && (
@@ -1072,7 +1116,7 @@ export default function Home() {
     <div className="min-h-screen bg-[#09090b] flex flex-col">
       {/* Header */}
       <header className="border-b border-zinc-800 bg-[#09090b]/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <a href="/" className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
@@ -1094,7 +1138,7 @@ export default function Home() {
 
       {/* Tab Bar */}
       <nav className="sticky top-[65px] z-40 bg-[#09090b]/90 backdrop-blur-sm border-b border-zinc-800">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-6">
           <div className="flex gap-1">
             {tabs.map((tab) => (
               <button
@@ -1119,7 +1163,7 @@ export default function Home() {
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-6 py-10 space-y-8 flex-1">
+      <main className="max-w-7xl mx-auto px-6 py-10 space-y-8 flex-1">
         {/* ============================================================ */}
         {/* MODE: TEMPLATE                                               */}
         {/* ============================================================ */}
@@ -1319,7 +1363,29 @@ export default function Home() {
             {/* Generated Code */}
             {creativeCode && (
               <section className="border border-zinc-800 rounded-xl bg-zinc-900/50 p-5">
-                <h2 className="text-sm font-medium text-zinc-400 uppercase tracking-wider mb-3">Generated Code</h2>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-medium text-zinc-400 uppercase tracking-wider">Generated Code</h2>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(creativeCode);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-md transition-colors cursor-pointer"
+                  >
+                    {copied ? (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                        Copy
+                      </>
+                    )}
+                  </button>
+                </div>
                 <pre className="bg-[#1e1e2e] rounded-lg p-4 overflow-x-auto text-sm text-[#e0def4] font-mono leading-relaxed max-h-96 overflow-y-auto">
                   {creativeCode}
                 </pre>

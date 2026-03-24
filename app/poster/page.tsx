@@ -1,9 +1,21 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { toPng } from "html-to-image";
-import { POSTER_SIZES } from "@/skills/poster/schema";
+import { useState, useCallback } from "react";
+import dynamic from "next/dynamic";
+import { POSTER_SIZES, type PosterElement } from "@/skills/poster/schema";
 import { MODEL_OPTIONS } from "@/src/types";
+
+const PosterCanvas = dynamic(
+  () => import("@/app/components/PosterCanvas"),
+  { ssr: false },
+);
+
+const PosterToolbar = dynamic(
+  () => import("@/app/components/PosterToolbar"),
+  { ssr: false },
+);
+
+type CanvasInstance = import("fabric").Canvas;
 
 export default function PosterPage() {
   const [topic, setTopic] = useState("");
@@ -13,21 +25,28 @@ export default function PosterPage() {
   const [selectedModel, setSelectedModel] = useState("claude-sonnet-4-20250514");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [posterHtml, setPosterHtml] = useState<string | null>(null);
   const [posterTitle, setPosterTitle] = useState("");
   const [detectedSkills, setDetectedSkills] = useState<string[]>([]);
   const [posterWidth, setPosterWidth] = useState(1080);
   const [posterHeight, setPosterHeight] = useState(1080);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [posterBg, setPosterBg] = useState<string | null>(null);
+  const [posterElements, setPosterElements] = useState<PosterElement[] | null>(null);
+  const [canvasInstance, setCanvasInstance] = useState<CanvasInstance | null>(null);
 
   const width = selectedSize.id === "custom" ? customWidth : selectedSize.width;
   const height = selectedSize.id === "custom" ? customHeight : selectedSize.height;
+
+  const handleCanvasReady = useCallback((c: CanvasInstance) => {
+    setCanvasInstance(c);
+  }, []);
 
   const generatePoster = async () => {
     if (!topic.trim()) return;
     setGenerating(true);
     setError(null);
-    setPosterHtml(null);
+    setPosterBg(null);
+    setPosterElements(null);
+    setCanvasInstance(null);
 
     try {
       const res = await fetch("/api/poster/generate", {
@@ -38,10 +57,11 @@ export default function PosterPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Generation failed");
 
-      setPosterHtml(data.html);
       setPosterTitle(data.title || "poster");
       setPosterWidth(data.width);
       setPosterHeight(data.height);
+      setPosterBg(data.background);
+      setPosterElements(data.elements);
       setDetectedSkills(data.detectedSkills || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate poster");
@@ -50,83 +70,20 @@ export default function PosterPage() {
     }
   };
 
-  const getLiveHtml = (): string => {
-    // Read current DOM from iframe (includes user edits)
-    const iframeDoc = iframeRef.current?.contentDocument;
-    if (iframeDoc) {
-      const el = iframeDoc.querySelector("[data-poster]") as HTMLElement;
-      if (el) return el.innerHTML;
-    }
-    return posterHtml || "";
-  };
-
-  const downloadHtml = () => {
-    const html = getLiveHtml();
-    if (!html) return;
-    const fullHtml = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#111">
-${html}
-</body>
-</html>`;
-    const blob = new Blob([fullHtml], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
+  const downloadPng = () => {
+    if (!canvasInstance) return;
+    const dataUrl = canvasInstance.toDataURL({ format: "png", multiplier: 2 } as never);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `${posterTitle || "poster"}.html`;
+    a.href = dataUrl;
+    a.download = `${posterTitle || "poster"}.png`;
     a.click();
-    URL.revokeObjectURL(url);
   };
-
-  const downloadPng = async () => {
-    if (!iframeRef.current) return;
-    try {
-      const iframeDoc = iframeRef.current.contentDocument;
-      if (!iframeDoc) return;
-      const posterEl = iframeDoc.querySelector("[data-poster]") as HTMLElement;
-      if (!posterEl) return;
-      const dataUrl = await toPng(posterEl, { width: posterWidth, height: posterHeight, pixelRatio: 2 });
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = `${posterTitle || "poster"}.png`;
-      a.click();
-    } catch (err) {
-      console.error("PNG download failed:", err);
-      alert("PNG download failed. Try downloading as HTML instead.");
-    }
-  };
-
-  const iframeSrcdoc = posterHtml
-    ? `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<script src="https://cdn.tailwindcss.com"><\/script>
-<style>
-body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#09090b}
-[data-poster] *:hover{outline:1px dashed rgba(255,255,255,0.3);outline-offset:2px;cursor:text}
-[data-poster] *:focus{outline:2px solid rgba(59,130,246,0.6);outline-offset:2px}
-</style>
-</head>
-<body>
-<div data-poster="true" contenteditable="true" spellcheck="false">${posterHtml}</div>
-</body>
-</html>`
-    : "";
-
-  // Scale factor for preview
-  const maxPreviewWidth = 800;
-  const scale = posterWidth > maxPreviewWidth ? maxPreviewWidth / posterWidth : 1;
 
   return (
     <div className="min-h-screen bg-[#09090b] text-white">
       {/* Header */}
       <header className="border-b border-zinc-800">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <a href="/" className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
@@ -145,12 +102,11 @@ body{margin:0;display:flex;justify-content:center;align-items:center;min-height:
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+      <main className="max-w-7xl mx-auto px-6 py-10 space-y-8">
         {/* Input Section */}
         <section className="border border-zinc-800 rounded-xl bg-zinc-900/50 p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Create Poster</h2>
           <div className="space-y-4">
-            {/* Topic */}
             <div>
               <label className="block text-xs text-zinc-500 mb-1.5">Describe your poster</label>
               <textarea
@@ -162,9 +118,7 @@ body{margin:0;display:flex;justify-content:center;align-items:center;min-height:
               />
             </div>
 
-            {/* Size + Model row */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Size selector */}
               <div>
                 <label className="block text-xs text-zinc-500 mb-1.5">Size</label>
                 <select
@@ -190,7 +144,6 @@ body{margin:0;display:flex;justify-content:center;align-items:center;min-height:
                 )}
               </div>
 
-              {/* Model selector */}
               <div>
                 <label className="block text-xs text-zinc-500 mb-1.5">AI Model</label>
                 <div className="flex gap-2">
@@ -211,14 +164,12 @@ body{margin:0;display:flex;justify-content:center;align-items:center;min-height:
               </div>
             </div>
 
-            {/* Error */}
             {error && (
               <div className="bg-red-950/50 border border-red-900 rounded-lg p-3">
                 <p className="text-red-400 text-sm">{error}</p>
               </div>
             )}
 
-            {/* Generate button */}
             <button
               onClick={generatePoster}
               disabled={generating || !topic.trim()}
@@ -258,42 +209,35 @@ body{margin:0;display:flex;justify-content:center;align-items:center;min-height:
           </div>
         )}
 
-        {/* Preview */}
-        {posterHtml && (
+        {/* Canvas Editor */}
+        {posterBg && posterElements && (
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-medium text-zinc-400 uppercase tracking-wider">Preview</h2>
-              <div className="flex gap-2">
-                <button onClick={downloadHtml} className="text-sm bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
-                  HTML
-                </button>
-                <button onClick={downloadPng} className="text-sm bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
-                  PNG
-                </button>
-              </div>
+              <h2 className="text-sm font-medium text-zinc-400 uppercase tracking-wider">Editor</h2>
+              <button
+                onClick={downloadPng}
+                disabled={!canvasInstance}
+                className="text-sm bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+                Download PNG
+              </button>
             </div>
-            <div className="rounded-xl overflow-hidden border border-zinc-800 bg-[#09090b] flex justify-center py-8">
-              <div style={{ width: posterWidth * scale, height: posterHeight * scale, overflow: "hidden" }}>
-                <iframe
-                  ref={iframeRef}
-                  srcDoc={iframeSrcdoc}
-                  style={{
-                    width: posterWidth,
-                    height: posterHeight,
-                    transform: `scale(${scale})`,
-                    transformOrigin: "top left",
-                    border: "none",
-                  }}
-                  sandbox="allow-scripts allow-same-origin"
-                />
-              </div>
+
+            <PosterToolbar canvas={canvasInstance} />
+
+            <div className="mt-3 rounded-xl overflow-hidden border border-zinc-800 bg-[#09090b] flex justify-center py-8">
+              <PosterCanvas
+                width={posterWidth}
+                height={posterHeight}
+                background={posterBg}
+                elements={posterElements}
+                onCanvasReady={handleCanvasReady}
+              />
             </div>
           </section>
         )}
 
-        {/* Footer */}
         <footer className="text-center text-zinc-600 text-xs mt-16 pb-10">
           VidCraft AI — Poster Generator
         </footer>

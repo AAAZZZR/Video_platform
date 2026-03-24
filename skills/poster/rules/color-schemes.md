@@ -1,59 +1,43 @@
 ### Palette Construction
 - Use 1 primary color, 1 accent color, and 1 neutral (background)
-- Generate harmonious palettes from these Tailwind color families:
-  - Warm: rose, orange, amber, yellow
-  - Cool: blue, cyan, teal, emerald
-  - Neutral: slate, zinc, gray, stone
-  - Vibrant: purple, pink, indigo, violet
-- Limit the total number of distinct colors to 3-4 per poster to maintain cohesion
-- Use shades of the same hue (e.g., blue-400, blue-600, blue-900) for depth without adding new colors
+- Color families:
+  - Warm: #f43f5e (rose), #f97316 (orange), #f59e0b (amber), #eab308 (yellow)
+  - Cool: #3b82f6 (blue), #06b6d4 (cyan), #14b8a6 (teal), #10b981 (emerald)
+  - Neutral: #64748b (slate), #71717a (zinc), #6b7280 (gray), #78716c (stone)
+  - Vibrant: #8b5cf6 (purple), #ec4899 (pink), #6366f1 (indigo), #7c3aed (violet)
+- Limit to 3-4 distinct colors per poster for cohesion
+- Use lighter/darker shades of the same hue for depth
 
 ### Gradient Patterns
-- Hero backgrounds: bg-gradient-to-br from-{color}-600 via-{color}-700 to-{color}-900
-- Subtle overlays: bg-gradient-to-t from-black/60 to-transparent
-- Accent gradients: bg-gradient-to-r from-pink-500 to-purple-500
-- Multi-stop: use via-{color} for three-color gradients
-- Radial gradient (inline style): style="background: radial-gradient(circle at 30% 40%, #7c3aed 0%, #1e1b4b 70%)"
-- Mesh gradient effect: layer 2-3 absolute-positioned divs with radial gradients and blur-3xl
+- Hero backgrounds: "linear-gradient(135deg, #1e40af 0%, #1e3a5f 50%, #0f172a 100%)"
+- Subtle overlays: "linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.6) 100%)"
+- Accent gradients: "linear-gradient(90deg, #ec4899 0%, #8b5cf6 100%)"
 - Gradient direction meanings:
-  - to-b (top to bottom): calm, settled, natural (sky to ground)
-  - to-br (top-left to bottom-right): dynamic, forward motion
-  - to-r (left to right): progression, timeline, before-to-after
+  - 180deg (top to bottom): calm, settled, natural
+  - 135deg (diagonal): dynamic, forward motion
+  - 90deg (left to right): progression, timeline
 
 ### Mood-Based Color Selection
-- Professional/corporate: blue-700, slate-800, white
-- Creative/fun: purple-500, pink-500, yellow-400
-- Elegant/luxury: black, gold (amber-400), white
-- Nature/organic: emerald-600, green-700, amber-500
-- Tech/modern: indigo-600, cyan-400, slate-900
-- Urgent/sale: red-600, yellow-400, black
-- Calm/wellness: teal-400, sky-200, white
-- Food/restaurant: orange-500, red-700, amber-100
-- Music/nightlife: violet-600, fuchsia-500, black
-- Education/learning: blue-500, amber-400, slate-100
-- Holiday/festive: red-600, green-700, amber-300
+- Professional: background "#1e3a5f", accent "#3b82f6", text "#ffffff"
+- Creative: background "#2e1065", accent "#ec4899", highlight "#facc15"
+- Elegant: background "#000000", accent "#f59e0b" (gold), text "#ffffff"
+- Nature: background "#064e3b", accent "#10b981", highlight "#f59e0b"
+- Tech: background "#0f172a", accent "#06b6d4", text "#e2e8f0"
+- Urgent/sale: background "#000000", accent "#dc2626", highlight "#facc15"
+- Calm: background "#0f766e", accent "#67e8f9", text "#ffffff"
+- Food: background "#7c2d12", accent "#f97316", text "#fef3c7"
+- Music: background "#1e1b4b", accent "#c084fc", highlight "#f0abfc"
+- Education: background "#1e3a5f", accent "#3b82f6", highlight "#fbbf24"
 
 ### Contrast Rules
 - WCAG AA minimum: 4.5:1 for normal text, 3:1 for large text
 - Never use light text on light background or dark on dark
-- Test: white text needs bg darkness of at least 600 shade
-- Use bg-black/40 or bg-white/80 overlays to ensure readability
-- For colored text on colored backgrounds, ensure sufficient luminance difference
-- Safe combos: white on any 700+ shade, black on any 300- shade
+- White text works on any background darker than ~#555555
+- Use rect elements with opacity 0.4-0.6 behind text for readability on complex backgrounds
 
 ### Color Application Strategy
-- Background: Use the darkest or lightest shade — it covers the most area and should not compete
-- Primary content color: Apply to headline text or the largest visual element
-- Accent color: Use sparingly on CTAs, underlines, icons, or small decorative elements
-- Never apply accent color to more than 10-15% of the poster area
-- Use opacity variants (e.g., bg-purple-500/20) for large decorative shapes so they do not overpower
-
-### Dark vs Light Mode Posters
-- Dark posters (bg-gray-900, bg-slate-950, bg-black):
-  - Text: text-white, text-gray-100
-  - Accents pop more; use saturated colors (500-600 shades)
-  - Add subtle glow effects for depth
-- Light posters (bg-white, bg-gray-50, bg-stone-100):
-  - Text: text-gray-900, text-slate-800
-  - Use deeper accent shades (600-700) to maintain contrast
-  - Borders and shadows provide structure: border border-gray-200, shadow-sm
+- Background: Use darkest/lightest shade — should not compete with content
+- Primary text: fill "#ffffff" on dark, "#111827" on light
+- Accent: Use sparingly on CTA rects, decorative lines, or small elements
+- Never apply accent to more than 10-15% of poster area
+- Use low opacity (0.1-0.2) on large decorative circles/rects

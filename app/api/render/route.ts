@@ -8,6 +8,30 @@ import { checkCredits, deductFixedCredits } from "@/lib/credits";
 // Track active renders to prevent burst
 const activeRenders = new Map<string, number>();
 const MAX_CONCURRENT_PER_USER = 2;
+const MAX_CONCURRENT_GLOBAL = 4;
+let globalActiveRenders = 0;
+
+// Retry helper for Lambda rate limits
+async function renderWithRetry(
+  params: Parameters<typeof renderMediaOnLambda>[0],
+  maxAttempts = 3,
+) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await renderMediaOnLambda(params);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isRateLimit =
+        msg.includes("Rate Exceeded") ||
+        msg.includes("Concurrency limit") ||
+        msg.includes("TooManyRequestsException");
+      if (!isRateLimit || attempt === maxAttempts) throw err;
+      // Exponential backoff: 3s, 6s
+      await new Promise((r) => setTimeout(r, attempt * 3000));
+    }
+  }
+  throw new Error("Render failed after retries");
+}
 
 export async function POST(request: Request) {
   const user = await getUser();
@@ -15,11 +39,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
-  // Check concurrent render limit per user
+  // Check concurrent render limits
   const userRenders = activeRenders.get(user.id) ?? 0;
   if (userRenders >= MAX_CONCURRENT_PER_USER) {
     return NextResponse.json(
       { error: "Too many active renders. Please wait for current renders to finish." },
+      { status: 429 },
+    );
+  }
+  if (globalActiveRenders >= MAX_CONCURRENT_GLOBAL) {
+    return NextResponse.json(
+      { error: "Server is busy rendering. Please try again in a moment." },
       { status: 429 },
     );
   }
@@ -63,8 +93,9 @@ export async function POST(request: Request) {
 
     // Track active render
     activeRenders.set(user.id, userRenders + 1);
+    globalActiveRenders++;
 
-    const { renderId, bucketName } = await renderMediaOnLambda({
+    const { renderId, bucketName } = await renderWithRetry({
       region: "us-east-1",
       functionName: process.env.REMOTION_LAMBDA_FUNCTION_NAME!,
       serveUrl: process.env.REMOTION_SERVE_URL!,
@@ -74,7 +105,7 @@ export async function POST(request: Request) {
       imageFormat: "jpeg",
       maxRetries: 2,
       privacy: "public",
-      framesPerLambda: 120,
+      framesPerLambda: 320,
     });
 
     // Deduct credits after Lambda accepted the render
@@ -100,6 +131,7 @@ export async function POST(request: Request) {
       const current = activeRenders.get(user.id) ?? 1;
       if (current <= 1) activeRenders.delete(user.id);
       else activeRenders.set(user.id, current - 1);
+      globalActiveRenders = Math.max(0, globalActiveRenders - 1);
     }, 120_000);
 
     return NextResponse.json({ renderId, bucketName });
@@ -108,6 +140,7 @@ export async function POST(request: Request) {
     const current = activeRenders.get(user.id) ?? 1;
     if (current <= 1) activeRenders.delete(user.id);
     else activeRenders.set(user.id, current - 1);
+    globalActiveRenders = Math.max(0, globalActiveRenders - 1);
 
     console.error("Render error:", error);
     return NextResponse.json(
