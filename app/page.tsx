@@ -1,17 +1,32 @@
 import Link from "next/link";
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "VidCraft AI",
+  applicationCategory: "MultimediaApplication",
+  operatingSystem: "Web",
+  description: "AI-powered video and poster generation platform with templates, custom animations, voiceover, and subtitles.",
+  offers: {
+    "@type": "AggregateOffer",
+    lowPrice: "0",
+    highPrice: "20",
+    priceCurrency: "USD",
+  },
+};
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#09090b] text-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Header */}
       <header className="border-b border-zinc-800">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-            </div>
+            <img src="/logo.svg" alt="VidCraft AI" width={36} height={36} className="rounded-lg" />
             <span className="text-xl font-bold tracking-tight">VidCraft AI</span>
           </div>
           <nav className="flex items-center gap-6">
